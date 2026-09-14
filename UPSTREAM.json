@@ -1,0 +1,27 @@
+{
+  "schema": "hlpw6-source-provenance-v1",
+  "sources": [
+    {
+      "repository": "git@github.com:neilashton/autocfd5-aiml-submission.git",
+      "revision": "ae82ff9f36b4393f715463b5e0d0ddb67fa05803"
+    },
+    {
+      "repository": "git@github.com:neilashton/autocfd5-aiml-dashboard.git",
+      "revision": "7a8f7aed541914127f2852b91fc95b2cb0d579a2"
+    },
+    {
+      "repository": "git@github.com:neilashton/fluidsbench-submission.git",
+      "revision": "a710a442d676119ca5dfc25669e7828eb3c0e8d0"
+    }
+  ],
+  "numerical_reference_files": [
+    {
+      "path": "reference/exact_moment_audit.py",
+      "sha256": "9a8c81a9c30f73d531198709c2de1d93f682290acb27a47ba77607d107441773"
+    },
+    {
+      "path": "reference/compact_profiles.py",
+      "sha256": "8dc93c742d307b9e6f5f478bcf63e2f02fd4bc24de566e1229f71570fb62f48a"
+    }
+  ]
+}

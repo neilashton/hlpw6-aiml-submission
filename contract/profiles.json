@@ -1,0 +1,262 @@
+{
+  "schema": "hlpw6-aiml-profile-contract-v1",
+  "schema_version": 1,
+  "dataset_id": "hiliftaeroml",
+  "contract_id": "hlpw6-aiml-compact-profiles-v1",
+  "format": "hlpw6-aiml-compact-profiles-v1",
+  "status": "preview_native_activation_pending",
+  "activation_effect": "production intake gated by native-support-release.json",
+  "scope": {
+    "included": [
+      "surface_cp_cut_profile_diagnostic",
+      "volume_velocity_profile_diagnostic"
+    ],
+    "excluded": [
+      "full_surface_field_scoring",
+      "full_volume_field_scoring",
+      "force_and_moment_scoring",
+      "regional_diagnostics"
+    ],
+    "full_surface_cp_dual_area_l2": {
+      "metric_id": "surface_pressure_rel_l2",
+      "status": "unchanged_and_out_of_scope",
+      "support": "all canonical native surface points",
+      "weighting": "surface_point_dual_area",
+      "profile_payload_used": false
+    }
+  },
+  "container": {
+    "kind": "numpy_npz",
+    "case_artifact": "profiles/cases/<case_id>.npz",
+    "allow_pickle": false,
+    "member_format": "npy",
+    "member_order": [
+      "cp_q_delta",
+      "velocity_speed_over_u_inf"
+    ],
+    "zip_timestamp": "1980-01-01T00:00:00",
+    "compression": "zip_deflate_method_8_level_9",
+    "ownership": "participant",
+    "content": "predictions_only",
+    "member_order_by_scope": {
+      "surface_only": [
+        "cp_q_delta"
+      ],
+      "surface_and_volume": [
+        "cp_q_delta",
+        "velocity_speed_over_u_inf"
+      ]
+    }
+  },
+  "evaluator_owned_support": {
+    "included_in_participant_artifact": false,
+    "binding": "each case repeats exact support_identity_sha256 and prediction_order_sha256 values from the immutable evaluator support release",
+    "identity_encoding": {
+      "digest": "sha256",
+      "serialization": "deterministic numpy NPZ bytes using the listed array order, allow_pickle=false, member timestamps 1980-01-01T00:00:00, and deflate level 9",
+      "truth_arrays_included": false,
+      "participant_action": "copy the four published lowercase hexadecimal digest values into case metadata; do not place identity or support arrays in compact-profile-predictions.npz",
+      "surface_cp_support_identity_array_order": [
+        "cp_xyz_in",
+        "cp_arc_length_in",
+        "cp_branch_point_offsets",
+        "cp_branch_row_code",
+        "cp_branch_graph_component_code",
+        "cp_branch_component_code",
+        "cp_branch_plane_piece_code",
+        "cp_branch_side_code",
+        "cp_branch_topology_patch_code",
+        "cp_source_branch_index"
+      ],
+      "surface_cp_prediction_order_array_order": [
+        "cp_branch_point_offsets",
+        "cp_branch_row_code",
+        "cp_branch_graph_component_code",
+        "cp_source_branch_index",
+        "cp_xyz_in",
+        "cp_arc_length_in"
+      ],
+      "volume_velocity_support_identity_array_order": [
+        "velocity_requested_xyz_in",
+        "velocity_valid_mask",
+        "velocity_station_names",
+        "velocity_station_row_offsets",
+        "velocity_line_length_weights_in"
+      ],
+      "volume_velocity_prediction_order_array_order": [
+        "velocity_station_names",
+        "velocity_station_row_offsets",
+        "velocity_valid_row_indices"
+      ],
+      "velocity_valid_row_indices": "derived int64 flatnonzero(velocity_valid_mask), in ascending canonical 4005-row station-major order"
+    },
+    "surface_cp": {
+      "owns": [
+        "native and retained cut coordinates",
+        "physical graph and retained branch topology",
+        "retained segment endpoints and physical arc lengths",
+        "row, component, side, patch, and plane-piece identities",
+        "retained-point selection and prediction order"
+      ]
+    },
+    "volume_velocity": {
+      "owns": [
+        "requested_xyz_in",
+        "valid_mask",
+        "station_names",
+        "station_row_offsets",
+        "line_length_weights_in",
+        "valid-row prediction order"
+      ]
+    }
+  },
+  "surface_cp": {
+    "source_schema": "hilift_native_cp_line_metrics_v3",
+    "prediction_basis": "Cp=(P-p_inf)/q_inf",
+    "station_rows": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J"
+    ],
+    "physical_graph_identity": "branch_row_code plus branch_graph_component_code",
+    "retained_support": {
+      "maximum_points_per_physical_graph": 128,
+      "small_graph_rule": "retain every native graph point when its native point count is at most 128",
+      "large_graph_rule": "the evaluator-owned support selects at most 128 ordered points across the physical graph",
+      "selection_authority": "immutable evaluator support release",
+      "disconnected_graphs_remain_disconnected": true,
+      "new_scoring_edges_forbidden": true,
+      "retained_branch_boundaries_are_authoritative": true
+    },
+    "quantization": {
+      "scale": 1024,
+      "integer_dtype": "int16",
+      "formula": "q=int16(round(Cp*1024))",
+      "rounding": "IEEE-754 roundTiesToEven",
+      "clipping": false,
+      "overflow": "reject_before_cast",
+      "decode": "Cp=q/1024"
+    },
+    "delta_encoding": {
+      "array": "cp_q_delta",
+      "dtype": "int16",
+      "shape": [
+        "cp_retained_point_count"
+      ],
+      "reset": "at every evaluator-owned retained branch boundary",
+      "first_value_in_branch": "absolute q value",
+      "later_value_in_branch": "q[i]-q[i-1]",
+      "overflow": "reject_before_cast"
+    },
+    "scoring": {
+      "support_and_weights": "evaluator_owned",
+      "centering": "independently within every physical connected cut graph",
+      "case_reduction": "pool graph arc-length-weighted SSE and SST",
+      "split_reduction": "macro-average complete-case R2 equally"
+    }
+  },
+  "volume_velocity": {
+    "source_schema": "hilift_native_velocity_profile_metrics_v2",
+    "prediction_basis": "speed/|U_inf|",
+    "station_order": [
+      "B.2",
+      "B.3",
+      "C.1",
+      "C.2",
+      "C.3"
+    ],
+    "rows_per_station": 801,
+    "canonical_row_count": 4005,
+    "prediction_selection": "all and only valid_mask=true rows, preserving canonical 4005-row station-major order",
+    "prediction_array": {
+      "array": "velocity_speed_over_u_inf",
+      "logical_dtype": "float32",
+      "logical_shape": [
+        "velocity_valid_row_count"
+      ],
+      "values": "finite scalar speed predictions",
+      "storage": {
+        "dtype": "uint8",
+        "shape": [
+          "4*velocity_valid_row_count"
+        ],
+        "encoding": "little_endian_float32_bits_unsigned_delta_modulo_2pow32_byte_shuffle_v1",
+        "steps": [
+          "reinterpret the canonical float32 values as little-endian unsigned 32-bit words",
+          "store the first word unchanged and each later word minus its predecessor modulo 2^32",
+          "concatenate byte lane 0 for every delta word, then lanes 1, 2, and 3"
+        ],
+        "decode": "unshuffle the four byte lanes, reinterpret as little-endian uint32 deltas, cumulatively add modulo 2^32, then reinterpret the reconstructed words as little-endian float32",
+        "lossless": true,
+        "browser_native_container_decompression": true
+      },
+      "exact_scoring_preferred": true,
+      "scoring_rule": "score the submitted scalar float32 values directly on evaluator-owned valid rows without reconstructing vector velocity"
+    },
+    "gap_rules": {
+      "validity_mask_is_evaluator_owned": true,
+      "invalid_rows_are_not_serialized": true,
+      "invalid_line_length_weights_are_zero": true,
+      "interpolation_across_invalid_runs_forbidden": true,
+      "station_weight": "evaluator-owned line_length_weights_in"
+    },
+    "scoring": {
+      "centering": "independently within B.2, B.3, C.1, C.2, and C.3",
+      "case_reduction": "pool station arc-length-weighted SSE and SST",
+      "split_reduction": "macro-average complete-case R2 equally"
+    }
+  },
+  "case_metadata": {
+    "surface_cp_counts": [
+      "physical_graph_count",
+      "retained_branch_count",
+      "retained_point_count"
+    ],
+    "volume_velocity_counts": [
+      "row_count",
+      "valid_row_count",
+      "invalid_row_count"
+    ],
+    "count_semantics": {
+      "physical_graph_count": "number of distinct branch_row_code plus branch_graph_component_code pairs before retained-point allocation",
+      "retained_branch_count": "length(cp_branch_point_offsets)-1",
+      "retained_point_count": "length(cp_q_delta), equal to length(cp_xyz_in) in evaluator support",
+      "row_count": "4005 canonical source rows before valid-mask compaction",
+      "valid_row_count": "count_nonzero(velocity_valid_mask), equal to the decoded logical length of velocity_speed_over_u_inf",
+      "stored_byte_count": "4*valid_row_count, equal to the on-disk uint8 length of velocity_speed_over_u_inf",
+      "invalid_row_count": "row_count-valid_row_count; invalid rows are not serialized"
+    },
+    "required_identity_bindings": [
+      "surface_cp.support_identity_sha256",
+      "surface_cp.prediction_order_sha256",
+      "volume_velocity.support_identity_sha256",
+      "volume_velocity.prediction_order_sha256"
+    ]
+  },
+  "privacy_and_truth_boundary": {
+    "prediction_artifact_member_inventory_is_exact": true,
+    "ground_truth_arrays_forbidden": true,
+    "reference_arrays_forbidden": true,
+    "evaluator_support_arrays_forbidden": true,
+    "profile_ground_truth_is_benchmark_owned": true
+  },
+  "backward_compatibility": {
+    "native_profile_v1_is_unchanged": true,
+    "v1_and_v2_require_explicit_format_dispatch": true,
+    "silent_v1_to_v2_reinterpretation_forbidden": true,
+    "submission_specification_binding": "not_yet_bound"
+  },
+  "activation_gate": "Owner approval, an immutable evaluator-support and profile-truth release bound to this exact contract SHA-256, and explicit submission-specification activation are required before v2 submissions open.",
+  "upstream_reference": {
+    "contract_id": "hiliftaeroml-compact-profile-predictions-v2-candidate",
+    "format": "fluidsbench-hiliftaeroml-compact-profile-chunks-v2-candidate",
+    "sha256": "b1fd29b2cb6c1c84c694ddffc5d85f6cd68fd175b79c3695a443aa78bf962c2f"
+  }
+}

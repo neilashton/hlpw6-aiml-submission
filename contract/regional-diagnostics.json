@@ -1,0 +1,266 @@
+{
+  "schema": "hiliftaeroml-regional-diagnostics-contract-v2",
+  "schema_version": 2,
+  "dataset_id": "hiliftaeroml",
+  "status": "candidate_report_only",
+  "contract_id": "hiliftaeroml-native-geometric-regions-v1",
+  "supersedes_contract": "regional-diagnostics-v1.json",
+  "scoring": {
+    "weight": 0.0,
+    "affects_official_metric_values": false,
+    "affects_component_or_overall_scores": false,
+    "changes_required_prediction_fields": false,
+    "requires_new_model_inference": false
+  },
+  "partition_rules": {
+    "support_association": "native_point_data",
+    "native_raw_point_order_preserved": true,
+    "mutually_exclusive": true,
+    "exhaustive": true,
+    "chunk_boundary_invariant": true,
+    "regional_additive_sums_must_reconstruct_global_sums": true,
+    "participant_supplied_region_ids_accepted": false
+  },
+  "coordinate_frame": {
+    "name": "checkpoint_normalized_body_frame",
+    "definition": "(native_coordinate_in - organizer_published_case_center_raw_in) / organizer_published_L_ref_in",
+    "axes": {
+      "x": "aircraft longitudinal axis; increasing generally nose-to-tail and downstream",
+      "y": "spanwise axis on the published half-model",
+      "z": "vertical axis"
+    },
+    "coordinate_unit": "dimensionless",
+    "center_and_reference_length_binding": "the immutable per-case center and L_ref used by the checkpoint inference contract"
+  },
+  "surface": {
+    "support_id": "surface_native_points",
+    "fields": [
+      "surface_pressure",
+      "surface_wall_shear"
+    ],
+    "primary_weighting": "published_native_nodal_dual_area_in2",
+    "definition_id": "hiliftaeroml-surface-four-envelope-proxies-v1",
+    "region_order": [
+      "nacelle_installation_envelope_proxy",
+      "inboard_high_lift_envelope_proxy",
+      "outboard_high_lift_envelope_proxy",
+      "fuselage_tail_and_remaining"
+    ],
+    "precedence": [
+      "nacelle_installation_envelope_proxy",
+      "inboard_high_lift_envelope_proxy",
+      "outboard_high_lift_envelope_proxy",
+      "fuselage_tail_and_remaining"
+    ],
+    "regions": [
+      {
+        "code": 0,
+        "region_id": "nacelle_installation_envelope_proxy",
+        "predicate": "-2.00 <= x < 0.25 and -0.75 <= y < 0.05 and -0.75 <= z < 0.10"
+      },
+      {
+        "code": 1,
+        "region_id": "inboard_high_lift_envelope_proxy",
+        "predicate": "-1.75 <= x < 1.85 and -1.35 <= y < -0.25 and -0.35 <= z < 0.35, excluding higher-precedence regions"
+      },
+      {
+        "code": 2,
+        "region_id": "outboard_high_lift_envelope_proxy",
+        "predicate": "-1.75 <= x < 1.85 and -0.25 <= y < 2.50 and -0.35 <= z < 0.35, excluding higher-precedence regions"
+      },
+      {
+        "code": 3,
+        "region_id": "fuselage_tail_and_remaining",
+        "predicate": "all remaining native surface points"
+      }
+    ],
+    "semantic_limit": "The first three regions are frozen Cartesian envelopes, not CAD part, named-STL-solid, CFD patch, slat, flap, wing, nacelle, or installation labels. The current named-STL classifier is validated only for exact Cp-cut segment midpoints and is not promoted here to all native boundary points. The remainder includes all geometry outside the proxy envelopes."
+  },
+  "volume": {
+    "support_id": "volume_native_valid_points",
+    "fields": [
+      "volume_pressure",
+      "volume_velocity"
+    ],
+    "primary_weighting": "one_per_retained_native_point",
+    "definition_id": "hiliftaeroml-volume-sdf-wake-four-regions-v1",
+    "signed_distance": {
+      "definition": "PhysicsNeMo signed_distance_field(use_sign_winding_number=True) evaluated from the immutable case-local STL in checkpoint-normalized coordinates",
+      "unit": "dimensionless",
+      "organizer_owned": true,
+      "absolute_value_used_for_near_airframe": true
+    },
+    "region_order": [
+      "near_airframe_sdf_band",
+      "aft_airframe_wake_envelope_proxy",
+      "near_aircraft_flow_envelope",
+      "farfield_and_remaining"
+    ],
+    "precedence": [
+      "near_airframe_sdf_band",
+      "aft_airframe_wake_envelope_proxy",
+      "near_aircraft_flow_envelope",
+      "farfield_and_remaining"
+    ],
+    "regions": [
+      {
+        "code": 0,
+        "region_id": "near_airframe_sdf_band",
+        "predicate": "abs(signed_distance_nd) < 0.02"
+      },
+      {
+        "code": 1,
+        "region_id": "aft_airframe_wake_envelope_proxy",
+        "predicate": "1.50 <= x < 5.00 and abs(y) < 2.75 and -1.50 <= z < 1.50, excluding near_airframe_sdf_band"
+      },
+      {
+        "code": 2,
+        "region_id": "near_aircraft_flow_envelope",
+        "predicate": "-5.00 <= x < 5.00 and abs(y) < 5.00 and -4.00 <= z < 4.00, excluding higher-precedence regions"
+      },
+      {
+        "code": 3,
+        "region_id": "farfield_and_remaining",
+        "predicate": "all remaining retained native volume points"
+      }
+    ],
+    "semantic_limit": "The aft-airframe wake region is a body-frame Cartesian proxy and includes flow near tail geometry; it is not a streamline-, vortex-, boundary-layer-, or topology-derived wake label. Signed distance is geometric distance to the complete case-local STL, not distance to a specific high-lift component."
+  },
+  "metric_semantics": {
+    "regional_relative_l2_percent": "100*sqrt(sum(region_weight*||prediction-truth||^2)/sum(region_weight*||truth||^2)); this is normalized by signal energy inside the selected region and remains a local diagnostic",
+    "whole_support_normalized_rmse_percent": "100*sqrt(sum(region_weight*||prediction-truth||^2)/sum(region_weight))/sqrt(sum(whole_support_weight*||truth||^2)/sum(whole_support_weight)); the denominator is the truth RMS over the complete case field support, so a near-zero local signal cannot make the regional comparison singular or arbitrarily large",
+    "r2": "1-sum(region_weight*||prediction-truth||^2)/sum(region_weight*||truth-weighted_region_mean_truth||^2); null with an explicit status when regional target variance is zero",
+    "mae": "sum(region_weight*||prediction-truth||)/sum(region_weight)",
+    "rmse": "sqrt(sum(region_weight*||prediction-truth||^2)/sum(region_weight))",
+    "component_metrics": "the same formulas applied independently to ordered vector components",
+    "velocity_magnitude_metrics": "scalar metrics on ||prediction||_2 versus ||truth||_2",
+    "vector_reduction": "vector RMSE and truth RMS both flatten the same ordered components, so their ratio is dimensionless and component-count invariant",
+    "derived_quantities_are_not_additive": [
+      "relative_l2_percent",
+      "whole_support_normalized_rmse_percent",
+      "mae",
+      "rmse",
+      "r2",
+      "fractions",
+      "percentages"
+    ],
+    "chunk_protocol": "accumulate additive sufficient statistics per region and derive metrics only after the complete case closes; never average chunk-local metrics",
+    "case_reconstruction_tolerance": {
+      "relative": 5e-12,
+      "absolute": 1e-12,
+      "integer_counts": "exact"
+    },
+    "aggregate_pooled": "sum per-region additive sufficient statistics across the exact complete split before deriving metrics",
+    "aggregate_macro": "equal arithmetic mean of complete per-case regional derived metrics; this is the primary comparison reduction for whole_support_normalized_rmse_percent",
+    "aggregate_distribution": "minimum, median, p90 and maximum across every case for which the regional metric is defined",
+    "regional_scoring_weight": 0.0
+  },
+  "dashboard_policy": {
+    "hiliftaeroml_volume_primary": "case_macro.whole_support_normalized_rmse_percent.value",
+    "primary_label": "equal-case mean regional RMSE normalized by each case's whole-volume truth RMS",
+    "retained_diagnostics": [
+      "pooled whole_support_normalized_rmse_percent",
+      "pooled regional relative_l2_percent",
+      "pooled regional r2",
+      "regional squared-error fraction",
+      "case distributions"
+    ],
+    "lower_is_better": true,
+    "official_score_effect": "none"
+  },
+  "required_additive_sufficient_statistics": {
+    "common": [
+      "value_count",
+      "spatial_point_count",
+      "zero_weight_value_count",
+      "weight_sum",
+      "weight_square_sum",
+      "sum_absolute_error",
+      "sum_absolute_truth",
+      "sum_squared_error",
+      "sum_squared_truth",
+      "sum_truth",
+      "sum_truth_square"
+    ],
+    "vector_components": "repeat common statistics independently for every ordered component",
+    "velocity_magnitude": [
+      "value_count",
+      "spatial_point_count",
+      "weight_sum",
+      "sum_absolute_error",
+      "sum_absolute_truth",
+      "sum_squared_error",
+      "sum_squared_truth",
+      "sum_truth",
+      "sum_truth_square"
+    ]
+  },
+  "report_schema": {
+    "schema": "hiliftaeroml-regional-diagnostics-aggregate-v2",
+    "required_top_level_keys": [
+      "schema",
+      "contract_sha256",
+      "dataset_id",
+      "split_id",
+      "prediction_scope",
+      "case_count",
+      "surface",
+      "volume",
+      "reconstruction"
+    ],
+    "per_support_required_keys": [
+      "support_id",
+      "region_order",
+      "fields"
+    ],
+    "per_field_required_keys": [
+      "global",
+      "regions",
+      "pooled",
+      "macro",
+      "case_distribution"
+    ],
+    "per_region_required_keys": [
+      "region_id",
+      "entity_fraction",
+      "weight_fraction",
+      "squared_error_fraction",
+      "whole_support_normalized_rmse_percent",
+      "relative_l2_percent",
+      "r2",
+      "r2_status",
+      "mae",
+      "rmse",
+      "case_macro",
+      "case_distribution"
+    ],
+    "case_macro_metric_shape": {
+      "value": "finite number or null",
+      "defined_case_count": "integer from zero through case_count"
+    },
+    "case_distribution_metric_shape": {
+      "defined_case_count": "integer from zero through case_count",
+      "minimum": "finite number or null",
+      "median": "finite number or null",
+      "p90": "finite number or null",
+      "maximum": "finite number or null"
+    },
+    "reconstruction_required_keys": [
+      "status",
+      "relative_tolerance",
+      "absolute_tolerance",
+      "checked_case_count",
+      "checked_field_count"
+    ]
+  },
+  "source_compatibility": {
+    "accepted_native_case_schema": "hiliftaeroml-regional-diagnostics-case-support-v1",
+    "accepted_native_aggregate_schema": "hiliftaeroml-regional-diagnostics-aggregate-v1",
+    "derivation": "The v2 aggregate is derived exactly from the v1 additive sufficient statistics; retained model predictions and official field metric inputs are unchanged."
+  },
+  "future_semantic_upgrade": {
+    "surface": "A later separately versioned region definition may use organizer-published, all-native-point component IDs after the named-STL classifier is independently validated for coverage, ambiguity and stability across every geometry.",
+    "volume": "A later separately versioned region definition may replace the wake envelope with validated high-lift-component distance bands or flow/topology-aware regions.",
+    "compatibility_rule": "Any changed predicate, threshold, center binding, component classifier or region order requires a new definition_id and contract hash."
+  }
+}

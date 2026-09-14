@@ -1,0 +1,22 @@
+name: Verify HLPW6 submission tools
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --extra test
+      - run: uv run ruff check src tests
+      - run: uv run pytest
+      - run: uv build
+      - name: Verify installed wheel outside the checkout
+        run: |
+          uv venv /tmp/hlpw6-wheel --python 3.12
+          uv pip install --python /tmp/hlpw6-wheel/bin/python dist/*.whl
+          cd /tmp
+          /tmp/hlpw6-wheel/bin/hlpw6-aiml list-splits

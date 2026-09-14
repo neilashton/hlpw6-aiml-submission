@@ -1,0 +1,6 @@
+HLPW6 AI/ML workshop software.
+Based on the AutoCFD5 AI/ML submission and dashboard workflow,
+and the HiLiftAeroML reference implementation in FluidsBench.
+Numerical reference routines retain their upstream source attribution.
+Source revisions and original file hashes are recorded in UPSTREAM.json.
+HiLiftAeroML is the NVIDIA dataset; its data remains subject to its dataset license.
