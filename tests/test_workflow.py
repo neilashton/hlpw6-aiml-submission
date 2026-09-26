@@ -64,6 +64,27 @@ def test_native_activation_is_explicit(workflow):
         evaluate_entry(root / "entry", root / "support", root / "production")
 
 
+def test_report_preserves_metric_meaning_and_escapes_participant_text(workflow):
+    root, output, result = workflow
+    result["submission"]["method_name"] = "<script>alert('method')</script>"
+    write_json(output / "result.json", result)
+    write_report(output, root / "readable-report.html")
+    document = (root / "readable-report.html").read_text()
+    assert "<script>" not in document
+    assert "&lt;script&gt;" in document
+    assert "Surface pressure — relative L2 error (%)" in document
+    assert "Surface pressure — relative L2 error (equal entities) (%)" in document
+    assert "Volume velocity — RMSE (m/s)" in document
+    assert "Higher is better" in document and "Lower is better" in document
+    assert "Metric IDs and weighting" in document
+    assert "surface_pressure_equal_entity_rel_l2" in document
+    assert "surface point dual area" in document
+    if result["prediction_scope"] == "surface_only":
+        assert "Surface only" in document and "Not submitted" in document
+    else:
+        assert "Surface + volume" in document
+
+
 def test_changed_predictions_invalidate_resume(workflow):
     root, output, _ = workflow
     path = next((root / "entry").rglob("pressure.npy"))
