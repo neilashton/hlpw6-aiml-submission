@@ -24,7 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     initialize.add_argument("--submission-id", required=True)
     initialize.add_argument("--method-name", required=True)
     initialize.add_argument("--contact-email", required=True)
-    validate = sub.add_parser("validate-entry")
+    validate = sub.add_parser("validate-entry", help="Check an entry declaration")
     validate.add_argument("entry", type=Path)
     fetch = sub.add_parser(
         "fetch-data", help="Download pinned native archives; use --dry-run first"
@@ -35,20 +35,28 @@ def main(argv: list[str] | None = None) -> int:
     fetch.add_argument("--dry-run", action="store_true")
     evaluate = sub.add_parser("evaluate-entry", help="Evaluate all declared native predictions")
     evaluate.add_argument("entry", type=Path)
-    evaluate.add_argument("--support", type=Path, required=True)
+    evaluate.add_argument(
+        "--support", type=Path, required=True,
+        help="Directory containing organiser-provided scoring support",
+    )
     evaluate.add_argument("--output", type=Path, required=True)
-    evaluate.add_argument("--scratch", type=Path)
-    evaluate.add_argument("--resume", action="store_true")
+    evaluate.add_argument(
+        "--scratch", type=Path, help="Directory for temporary prediction files"
+    )
+    evaluate.add_argument(
+        "--resume", action="store_true",
+        help="Reuse completed cases when input identities are unchanged",
+    )
     evaluate.add_argument(
         "--demonstration",
         action="store_true",
         help="Use synthetic support; output is never a workshop submission",
     )
-    package = sub.add_parser("package", help="Build and verify a compact deterministic ZIP")
+    package = sub.add_parser("package", help="Build and verify a submission ZIP")
     package.add_argument("result", type=Path)
     package.add_argument("--output", type=Path, required=True)
     package.add_argument("--allow-demonstration", action="store_true")
-    verify = sub.add_parser("verify-package")
+    verify = sub.add_parser("verify-package", help="Verify a packaged result")
     verify.add_argument("package", type=Path)
     verify.add_argument("--allow-demonstration", action="store_true")
     report = sub.add_parser("report", help="Write a standalone local HTML metric report")
@@ -56,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     report.add_argument("--output", type=Path, required=True)
     demo = sub.add_parser(
         "demo",
-        help="Create tiny synthetic input fixtures, explicitly excluded from workshop intake",
+        help="Create synthetic inputs for an offline workflow check",
     )
     demo.add_argument("root", type=Path)
     demo.add_argument("--scope", choices=SCOPES, default="surface_and_volume")
